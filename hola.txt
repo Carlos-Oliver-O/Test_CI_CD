@@ -6,10 +6,20 @@
   _ARTIFACT_REGISTRY_IMAGE_NAME: Test_CI_CD_image
   _DATAFLOW_PYTHON_FILE_PATH: edem_dataflow_pipeline.py
   _DATAFLOW_REQUIREMENTS_FILE_PATH: requirements.txt
-  _BATTERY_PUBSUB_SUBSCRIPTION_NAME: battery_telemetry_topic-sub
-  _DRIVING_PUBSUB_SUBSCRIPTION_NAME: driving_telemetry_topic-sub
-  _ENVIRONMENT_PUBSUB_SUBSCRIPTION_NAME: environment_telemetry_topic-sub
+  _BATTERY_PUBSUB_SUBSCRIPTION_NAME: projects/smooth-bond-447114-p2/subscription/battery_telemetry_topic-sub
+  _DRIVING_PUBSUB_SUBSCRIPTION_NAME: projects/smooth-bond-447114-p2/subscription/driving_telemetry_topic-sub
+  _ENVIRONMENT_PUBSUB_SUBSCRIPTION_NAME: projects/smooth-bond-447114-p2/subscription/environment_telemetry_topic-sub
   _FIRESTORE_COLLECTION_NAME_: vehicle_telemetry_data
   _OUTPUT_PUBSUB_TOPIC_NAME: beam_subscription
   _IMAGE_API_URL: https://europe-southwest1-serverless-edem.cloudfunctions.net/getTrafficImages
   _SYSTEM_ID: CARLOSOLIVER
+
+
+  cd /02_Code
+
+python edem_data_generator.py \
+    --project_id smooth-bond-447114-p2 \
+    --telemetry_battery_topic projects/smooth-bond-447114-p2/topics/battery_telemetry_topic \
+    --telemetry_driving_topic projects/smooth-bond-447114-p2/topics/driving_telemetry_topic \
+    --telemetry_environment_topic projects/smooth-bond-447114-p2/topics/environment_telemetry_topic \
+    --city_name Cuenca
