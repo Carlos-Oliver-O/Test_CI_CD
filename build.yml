@@ -30,8 +30,8 @@ substitutions:
   _DATAFLOW_JOB_NAME: vehiclecar
   _DATAFLOW_TEMPLATE_NAME: vehicle_car
   _REGION_ID: europe-west1
-  _ARTIFACT_REGISTRY_REPOSITORY: Test_CI_CD
-  _ARTIFACT_REGISTRY_IMAGE_NAME: img-docker
+  _ARTIFACT_REGISTRY_REPOSITORY: img-docker
+  _ARTIFACT_REGISTRY_IMAGE_NAME: europe-west1-docker.pkg.dev/smooth-bond-447114-p2/img-docker
   _DATAFLOW_PYTHON_FILE_PATH: edem_dataflow_pipeline.py
   _DATAFLOW_REQUIREMENTS_FILE_PATH: requirements.txt
   _BATTERY_PUBSUB_SUBSCRIPTION_NAME: battery_telemetry_topic-sub
