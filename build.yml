@@ -26,8 +26,8 @@ options:
   logging: STACKDRIVER_ONLY
 substitutions:
   _DATAFLOW_BASE_BUCKET: vehicle_car
-  _DATAFLOW_JOB_NAME: vehiclecar
-  _DATAFLOW_TEMPLATE_NAME: vehicle_car
+  _DATAFLOW_JOB_NAME: vehiclecar_job
+  _DATAFLOW_TEMPLATE_NAME: vehicle_car_template
   _REGION_ID: europe-west1
   _ARTIFACT_REGISTRY_REPOSITORY: Test_CI_CD
   _ARTIFACT_REGISTRY_IMAGE_NAME: Test_CI_CD_image
