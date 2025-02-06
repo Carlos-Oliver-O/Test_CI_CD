@@ -26,11 +26,11 @@ options:
   logging: STACKDRIVER_ONLY
 substitutions:
   _DATAFLOW_BASE_BUCKET: vehicle_car
-  _DATAFLOW_JOB_NAME: vehiclecar_job1
-  _DATAFLOW_TEMPLATE_NAME: vehicle_car_template
+  _DATAFLOW_JOB_NAME: vehiclecar_jobb
+  _DATAFLOW_TEMPLATE_NAME: vehicle_car
   _REGION_ID: europe-west1
   _ARTIFACT_REGISTRY_REPOSITORY: img-docker
-  _ARTIFACT_REGISTRY_IMAGE_NAME: Test_CI_CD_image1
+  _ARTIFACT_REGISTRY_IMAGE_NAME: img-docker_img
   _DATAFLOW_PYTHON_FILE_PATH: edem_dataflow_pipeline.py
   _DATAFLOW_REQUIREMENTS_FILE_PATH: requirements.txt
   _BATTERY_PUBSUB_SUBSCRIPTION_NAME: projects/smooth-bond-447114-p2/subscriptions/battery_telemetry_topic-sub
