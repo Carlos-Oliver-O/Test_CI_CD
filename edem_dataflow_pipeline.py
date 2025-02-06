@@ -62,7 +62,16 @@ def ParsePubSubMessage(message):
         - The second element is the complete message for further aggregation.
     """
 
-    #ToDo: Complete this section
+    # Decode PubSub message in order to deal with
+    pubsub_message = message.decode('utf-8')
+    
+    # Convert string decoded in JSON format
+    msg = json.loads(pubsub_message)
+
+    logging.info("New message in PubSub: %s", msg)
+
+    # Return function
+    return msg['vehicle_id'], msg
 
 def getTrafficImage(item, api_url):
 
@@ -84,18 +93,25 @@ def getTrafficImage(item, api_url):
     import io
 
     # API call to simulate a photo captured by the radar
+    image_service = requests.get(api_url)
+    image_url = json.loads(image_service.content.decode('utf-8'))['image_url']
 
     #Read image from URL
+    image_response = requests.get(image_url)
+    image_bytes = io.BytesIO(image_response.content).read()
 
     #Append image_url to the payload
+    item['inspection'] = {}
+    item['inspection']['image_data'] = image_url
+    item['inspection']['timestamp'] = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    #ToDo: Complete this section
+    return item, image_bytes 
 
 """ Code: DoFn """
 
 class FormatFirestoreDocument(beam.DoFn):
 
-    def __init__(self, mode, firestore_collection):
+    def __init__(self,mode,firestore_collection):
         self.mode = mode
         self.firestore_collection = firestore_collection
 
@@ -116,10 +132,21 @@ class FormatFirestoreDocument(beam.DoFn):
         from google.cloud import firestore
 
         # Firestore Client
+        db = firestore.Client()
 
         # Write Data into Firestore
-        
-        #ToDo: Complete this section
+        events = ['battery_info', 'driving_info', 'environment_info'] if self.mode == 'raw' else ['battery_info', 'driving_info', 'environment_info', 'inspection']
+
+        for event in events:
+
+            if len(element[event]) > 0:
+
+                try:
+                    db.collection(self.firestore_collection).document(element['vehicle_id']).collection(event).document(element[event]['timestamp']).set(element[event])
+                    logging.info("Records have been stored in Firestore.")
+
+                except Exception as err:
+                    logging.error(err)
 
 class BusinessLogicDoFn(beam.DoFn):
 
@@ -198,7 +225,28 @@ class BusinessLogicDoFn(beam.DoFn):
                 - "non_critical_battery_users": Telemetry data for vehicles with sufficient battery levels or charging events.
         """
 
-        #ToDo: Complete this section
+        vehicle_id, (battery_data, event_data, environment_data) = element
+
+        battery_info = self._get_battery_info(battery_data)
+        driving_info = self._get_driving_info(event_data)
+        environment_info = self._get_environment_info(environment_data)
+
+        # Combine telemetry data
+        vehicle_telemetry_data = {
+            "vehicle_id": vehicle_id,
+            "battery_info": battery_info,
+            "driving_info": driving_info,
+            "environment_info": environment_info,
+        }
+        
+        # Determine output based on battery level and charging event
+        if battery_info and battery_info.get("battery_level", 100) < 30 and battery_info.get("event_type") != "charging":
+            
+            yield beam.pvalue.TaggedOutput("critical_battery_users", vehicle_telemetry_data)
+        
+        else:
+            yield beam.pvalue.TaggedOutput("non_critical_battery_users", vehicle_telemetry_data)
+
 
 class CalculateAutonomyDoFn(beam.DoFn):
 
@@ -282,14 +330,23 @@ class CalculateAutonomyDoFn(beam.DoFn):
         if is_valid:
 
             # Input params
-            #ToDo: Complete this section
+            battery_available = dict['battery_info']['battery_level'] 
+            temperature = dict['environment_info']['avg_temperature'] 
+            humidity = dict['environment_info']['avg_humidity'] 
+            braking_force = dict['driving_info']['avg_braking_force']
 
             # Calculate efficiency and autonomy
             efficiency = self._calculate_efficiency(temperature, humidity, braking_force)
             autonomy = battery_available * efficiency * autonomy_factor
 
             # Append data to the payload
-            #ToDo: Complete this section
+            dict['inspection']['traffic_level'] = traffic_level
+            dict['inspection']['autonomy'] = round(autonomy,2)
+
+            # Notification Message
+            logging.info(f"Vehicle: {dict['vehicle_id']} | autonomy: {dict['inspection']['autonomy']} km.")
+
+            yield dict
 
 
 class CloudVisionModelHandler(ModelHandler):
@@ -384,6 +441,7 @@ def run():
     parser.add_argument(
                 '--firestore_collection',
                 required=True,
+                default="vehicle_telemetry_data",
                 help='The Firestore collection where the telemetry data will be stored.')
     
     parser.add_argument(
@@ -429,63 +487,62 @@ def run():
         for telemetry_type, subscription in telemetry_sources.items():
             telemetry_data[telemetry_type] = (
                 p
-                | f"Read {telemetry_type.capitalize()} Telemetry Data From PubSub" >> #ToDo: Complete this section
-                | f"Parse JSON {telemetry_type} messages" >> #ToDo: Complete this section
-                | f"Fixed Window for {telemetry_type.capitalize()} Telemetry Data" >> #ToDo: Complete this section
+                | f"Read {telemetry_type.capitalize()} Telemetry Data From PubSub" >> beam.io.ReadFromPubSub(subscription=subscription)
+                | f"Parse JSON {telemetry_type} messages" >> beam.Map(ParsePubSubMessage)
+                | f"Fixed Window for {telemetry_type.capitalize()} Telemetry Data" >> beam.WindowInto(beam.window.FixedWindows(60))
             )
         """
 
         battery_data = (
             p 
-                | "Read Battery Telemetry Data From PubSub" >> #ToDo: Complete this section
-                | "Parse JSON battery messages" >> #ToDo: Complete this section
-                | "Fixed Window for Battery Telemetry Data" >> #ToDo: Complete this section
+                | "Read Battery Telemetry Data From PubSub" >> beam.io.ReadFromPubSub(subscription=args.battery_telemetry_subscription)
+                | "Parse JSON battery messages" >> beam.Map(ParsePubSubMessage)
+                | "Fixed Window for Battery Telemetry Data" >> beam.WindowInto(beam.window.FixedWindows(60))
         )
 
         driving_data = (
             p 
-                | "Read Driving Telemetry Data From PubSub" >> #ToDo: Complete this section
-                | "Parse JSON driving messages" >> #ToDo: Complete this section
-                | "Fixed Window for Driving Telemetry Data" >> #ToDo: Complete this section
+                | "Read Driving Telemetry Data From PubSub" >> beam.io.ReadFromPubSub(subscription=args.driving_telemetry_subscription)
+                | "Parse JSON driving messages" >> beam.Map(ParsePubSubMessage)
+                | "Fixed Window for Driving Telemetry Data" >> beam.WindowInto(beam.window.FixedWindows(60))
         )
 
         environment_data = (
             p 
-                | "Read Environment Telemetry Data From PubSub" >> #ToDo: Complete this section
-                | "Parse JSON environment messages" >> #ToDo: Complete this section
-                | "Fixed Window for Environment Telemetry Data" >> #ToDo: Complete this section
+                | "Read Environment Telemetry Data From PubSub" >> beam.io.ReadFromPubSub(subscription=args.environment_telemetry_subscription)
+                | "Parse JSON environment messages" >> beam.Map(ParsePubSubMessage)
+                | "Fixed Window for Environment Telemetry Data" >> beam.WindowInto(beam.window.FixedWindows(60))
         )
 
         # CoGroupByKey
         grouped_data = (
-            battery_data, driving_data, environment_data) | "Merge PCollections" >> #ToDo: Complete this section
+            battery_data, driving_data, environment_data) | "Merge PCollections" >> beam.CoGroupByKey()
         
         processed_data = (grouped_data
-            | "Check battery level" >> #ToDo: Complete this section
-        )
+            | "Check battery level" >> beam.ParDo(BusinessLogicDoFn()).with_outputs("critical_battery_users", "non_critical_battery_users"))
 
 
         (
             processed_data.non_critical_battery_users
-                | "Write non_critical_battery_users documents" >> #ToDo: Complete this section
+                | "Write non_critical_battery_users documents" >> beam.ParDo(FormatFirestoreDocument(mode='raw', firestore_collection=args.firestore_collection))
         )
 
         send_data = (
             processed_data.critical_battery_users
-                | "Capture Traffic Image" >> #ToDo: Complete this section
+                | "Capture Traffic Image" >> beam.Map(getTrafficImage, api_url=args.image_api)
                 | "Model Inference" >> RunInference(model_handler=CloudVisionModelHandler()) 
-                | "Calcular Autonomia" >> #ToDo: Complete this section
+                | "Calcular Autonomia" >> beam.ParDo(CalculateAutonomyDoFn())
         )
 
         (
             send_data
-                | "Encode notifications" >> #ToDo: Complete this section
-                | "Write notifications to PubSub" >> #ToDo: Complete this section
+                | "Encode notifications" >> beam.Map(lambda x: json.dumps({"inspector": args.system_id, "payload": x}).encode("utf-8"))
+                | "Write notifications to PubSub" >> beam.io.WriteToPubSub(topic=args.output_topic)
         )
 
         (
             send_data
-                | "Write critical_battery_users documents" >> #ToDo: Complete this section
+                | "Write critical_battery_users documents" >> beam.ParDo(FormatFirestoreDocument(mode='processed',firestore_collection=args.firestore_collection))
         )
 
 
@@ -493,7 +550,7 @@ if __name__ == '__main__':
 
     # Set Logs
     logging.basicConfig(level=logging.INFO)
-
+    
     # Disable logs from apache_beam.utils.subprocess_server
     logging.getLogger("apache_beam.utils.subprocess_server").setLevel(logging.ERROR)
 
