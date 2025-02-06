@@ -29,7 +29,7 @@ substitutions:
   _DATAFLOW_JOB_NAME: vehiclecar_job
   _DATAFLOW_TEMPLATE_NAME: vehicle_car_template
   _REGION_ID: europe-west1
-  _ARTIFACT_REGISTRY_REPOSITORY: Test_CI_CD
+  _ARTIFACT_REGISTRY_REPOSITORY: img-docker
   _ARTIFACT_REGISTRY_IMAGE_NAME: Test_CI_CD_image1
   _DATAFLOW_PYTHON_FILE_PATH: edem_dataflow_pipeline.py
   _DATAFLOW_REQUIREMENTS_FILE_PATH: requirements.txt
